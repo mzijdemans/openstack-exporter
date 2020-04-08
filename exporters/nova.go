@@ -357,21 +357,122 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			cpuId++
 		}
 
-		//todo: server_diagnostics_disk_details_write_bytes
+		// todo: make dynamic, what about hda and sda
+		var disks [12]string
+		disks[0] = "vda"
+		disks[1] = "vdb"
+		disks[2] = "vdc"
+		disks[3] = "vdd"
+		disks[4] = "sda"
+		disks[5] = "sdb"
+		disks[6] = "sdc"
+		disks[7] = "sdd"
+		disks[8] = "hda"
+		disks[9] = "hdb"
+		disks[10] = "hdc"
+		disks[11] = "hdd"
+
+		// server_diagnostics_disk_details_write_bytes
+		for _, disk := range disks {
+			accessor := disk + "_write"
+			diskWrite, ok := diags[accessor]
+			if ok {
+				ch <- prometheus.MustNewConstMetric(
+					exporter.Metrics["server_diagnostics_disk_details_write_bytes"].Metric,
+					prometheus.GaugeValue,
+					diskWrite.(float64),
+					server.ID,
+					server.Status,
+					server.Name,
+					server.TenantID,
+					server.ServerAttributesExt.HypervisorHostname,
+					disk)
+			}
+		}
+
 		//todo: server_diagnostics_disk_details_read_bytes
+		for _, disk := range disks {
+			accessor := disk + "_read"
+			diskRead, ok := diags[accessor]
+			if ok {
+				ch <- prometheus.MustNewConstMetric(
+					exporter.Metrics["server_diagnostics_disk_details_read_bytes"].Metric,
+					prometheus.GaugeValue,
+					diskRead.(float64),
+					server.ID,
+					server.Status,
+					server.Name,
+					server.TenantID,
+					server.ServerAttributesExt.HypervisorHostname,
+					disk)
+			}
+		}
+
 		//todo: server_diagnostics_disk_details_errors_count
+		for _, disk := range disks {
+			accessor := disk + "_errors"
+			diskErrors, ok := diags[accessor]
+			if ok {
+				ch <- prometheus.MustNewConstMetric(
+					exporter.Metrics["server_diagnostics_disk_details_errors_count"].Metric,
+					prometheus.GaugeValue,
+					diskErrors.(float64),
+					server.ID,
+					server.Status,
+					server.Name,
+					server.TenantID,
+					server.ServerAttributesExt.HypervisorHostname,
+					disk)
+			}
+		}
+
 		//todo: server_diagnostics_disk_details_read_requests
+		for _, disk := range disks {
+			accessor := disk + "_read_req"
+			diskReadReq, ok := diags[accessor]
+			if ok {
+				ch <- prometheus.MustNewConstMetric(
+					exporter.Metrics["server_diagnostics_disk_details_read_requests"].Metric,
+					prometheus.GaugeValue,
+					diskReadReq.(float64),
+					server.ID,
+					server.Status,
+					server.Name,
+					server.TenantID,
+					server.ServerAttributesExt.HypervisorHostname,
+					disk)
+			}
+		}
+
 		//todo: server_diagnostics_disk_details_write_requests
-		//todo: server_diagnostics_memory_details_gb
+		for _, disk := range disks {
+			accessor := disk + "_write_req"
+			diskWriteReq, ok := diags[accessor]
+			if ok {
+				ch <- prometheus.MustNewConstMetric(
+					exporter.Metrics["server_diagnostics_disk_details_write_requests"].Metric,
+					prometheus.GaugeValue,
+					diskWriteReq.(float64),
+					server.ID,
+					server.Status,
+					server.Name,
+					server.TenantID,
+					server.ServerAttributesExt.HypervisorHostname,
+					disk)
+			}
+		}
+
 		//todo: server_diagnostics_nic_details_rx_packets
+		//todo: server_diagnostics_nic_details_rx_rate
+		//todo: server_diagnostics_nic_details_tx_packets
+		//todo: server_diagnostics_nic_details_tx_rate
+
 		//todo: server_diagnostics_nic_details_rx_drop
 		//todo: server_diagnostics_nic_details_tx_errors
 		//todo: server_diagnostics_nic_details_rx_octets
-		//todo: server_diagnostics_nic_details_rx_rate
 		//todo: server_diagnostics_nic_details_rx_errors
 		//todo: server_diagnostics_nic_details_tx_drop
-		//todo: server_diagnostics_nic_details_tx_packets
-		//todo: server_diagnostics_nic_details_tx_rate
+		//todo: server_diagnostics_memory_details_gb
 		//todo: server_diagnostics_uptime
 		//fmt.Printf("%+v\n", diags)
 		//}
