@@ -3,7 +3,9 @@ package exporters
 import (
 	"errors"
 	"fmt"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/diagnostics"
 	"sort"
+	"strconv"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
@@ -72,6 +74,27 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
+
+	{Name: "server_diagnostics_cpu_details_time", Labels: []string{"id", "status", "name", "host_id", "cpu_id"}},
+
+	{Name: "server_diagnostics_disk_details_write_bytes", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_read_bytes", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_errors_count", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_read_requests", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_write_requests", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
+
+	{Name: "server_diagnostics_memory_details_gb", Labels: []string{"id", "status", "name", "host_id", "uuid"}},
+	{Name: "server_diagnostics_nic_details_rx_packets", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_drop", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_errors", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_octets", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_rate", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_errors", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_drop", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_packets", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_rate", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
+	{Name: "server_diagnostics_uptime", Labels: []string{"id", "status", "name", "host_id"}},
+
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}},
@@ -263,14 +286,92 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		return err
 	}
 
+	//allServers[0]
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
 
 	// Server status metrics
 	for _, server := range allServers {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+
+		ch <- prometheus.MustNewConstMetric(
+			exporter.Metrics["server_status"].Metric,
+			prometheus.GaugeValue,
+			float64(mapServerStatus(server.Status)),
+			server.ID,
+			server.Status,
+			server.Name,
+			server.TenantID,
+			server.UserID,
+			server.AccessIPv4,
+			server.AccessIPv6,
+			server.HostID,
+			server.ID,
+			server.AvailabilityZone,
+			fmt.Sprintf("%v", server.Flavor["id"]))
+
+		//server_diagnostics_cpu_details_time
+		//map[cpu0_time:9.965e+10 cpu1_time:7.153e+10 hda_errors:-1 hda_read:796976 hda_read_req:213 hda_write:0
+		//		hda_write_req:0 memory:1.048576e+06 memory-actual:1.048576e+06 memory-available:1.008548e+06
+		//		memory-last_update:1.586337512e+09 memory-major_fault:643 memory-minor_fault:3.985196e+06
+		//		memory-rss:810084 memory-swap_in:0 memory-swap_out:0 memory-unused:582860 memory-usable:593740
+		//		tap3e417313-ff_rx:3.454137e+06 tap3e417313-ff_rx_drop:0 tap3e417313-ff_rx_errors:0
+		//		tap3e417313-ff_rx_packets:8115 tap3e417313-ff_tx:3.905463e+06 tap3e417313-ff_tx_drop:0
+		//		tap3e417313-ff_tx_errors:0 tap3e417313-ff_tx_packets:15717 tap8ecdff3e-0b_rx:63442
+		//		tap8ecdff3e-0b_rx_drop:0 tap8ecdff3e-0b_rx_errors:0 tap8ecdff3e-0b_rx_packets:414
+		//		tap8ecdff3e-0b_tx:400304 tap8ecdff3e-0b_tx_drop:0 tap8ecdff3e-0b_tx_errors:0
+		//		tap8ecdff3e-0b_tx_packets:1180 vda_errors:-1 vda_read:1.89332992e+08 vda_read_req:10778
+		//		vda_write:2.23245312e+08 vda_write_req:1663]
+
+		//if server.Status != "ACTIVE" {
+		diags, err := diagnostics.Get(exporter.Client, server.ID).Extract()
+		if err != nil {
+			break // return err
+		}
+
+		//fmt.Printf("%+v\n", diags)
+		//{"id", "status", "name", "host_id", "cpu_id"
+		var hasMoreCpus bool
+		hasMoreCpus = true
+		var cpuId int
+		cpuId = 0
+		for hasMoreCpus {
+			cpuName := "cpu" + strconv.Itoa(cpuId)
+			accessor := cpuName + "_time"
+			cpuTime, ok := diags[accessor]
+			if ok {
+				ch <- prometheus.MustNewConstMetric(
+					exporter.Metrics["server_diagnostics_cpu_details_time"].Metric,
+					prometheus.GaugeValue,
+					cpuTime.(float64),
+					server.ID,
+					server.Status,
+					server.Name,
+					server.HostID,
+					cpuName)
+			}
+			hasMoreCpus = ok
+			cpuId++
+		}
+
+		//todo: server_diagnostics_disk_details_write_bytes
+		//todo: server_diagnostics_disk_details_read_bytes
+		//todo: server_diagnostics_disk_details_errors_count
+		//todo: server_diagnostics_disk_details_read_requests
+		//todo: server_diagnostics_disk_details_write_requests
+		//todo: server_diagnostics_memory_details_gb
+		//todo: server_diagnostics_nic_details_rx_packets
+		//todo: server_diagnostics_nic_details_rx_drop
+		//todo: server_diagnostics_nic_details_tx_errors
+		//todo: server_diagnostics_nic_details_rx_octets
+		//todo: server_diagnostics_nic_details_rx_rate
+		//todo: server_diagnostics_nic_details_rx_errors
+		//todo: server_diagnostics_nic_details_tx_drop
+		//todo: server_diagnostics_nic_details_tx_packets
+		//todo: server_diagnostics_nic_details_tx_rate
+		//todo: server_diagnostics_uptime
+		//fmt.Printf("%+v\n", diags)
+		//}
 	}
 
 	return nil
