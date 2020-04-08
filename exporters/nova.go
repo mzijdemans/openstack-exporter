@@ -326,7 +326,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		//if server.Status != "ACTIVE" {
 		diags, err := diagnostics.Get(exporter.Client, server.ID).Extract()
 		if err != nil {
-			break // return err
+			continue // return err
 		}
 
 		//fmt.Printf("%+v\n", diags)
