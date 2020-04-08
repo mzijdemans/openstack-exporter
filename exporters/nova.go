@@ -6,7 +6,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/diagnostics"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
 	"sort"
-	"strconv"
+	"strings"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
@@ -84,16 +84,39 @@ var defaultNovaMetrics = []Metric{
 	{Name: "server_diagnostics_disk_details_read_requests", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
 	{Name: "server_diagnostics_disk_details_write_requests", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
 
-	{Name: "server_diagnostics_memory_details_gb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
-	{Name: "server_diagnostics_nic_details_rx_packets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_drop", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_errors", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_octets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_rate", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_errors", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_drop", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_packets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_rate", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	// memory:1.048.576.e+06
+	{Name: "server_diagnostics_memory_selected_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-actual:1.048576e+06
+	{Name: "server_diagnostics_memory_actual_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-available:1.008548e+06
+	{Name: "server_diagnostics_memory_available_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-last_update:1.586337512e+09
+	{Name: "server_diagnostics_memory_last_update_time", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-major_fault:643
+	{Name: "server_diagnostics_memory_major_fault", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-minor_fault:3.985196e+06
+	{Name: "server_diagnostics_memory_minor_fault", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-rss:810084
+	{Name: "server_diagnostics_memory_rss", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-swap_in:0
+	{Name: "server_diagnostics_memory_swap_in", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-swap_out:0
+	{Name: "server_diagnostics_memory_swap_out", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-unused:582860
+	{Name: "server_diagnostics_memory_unused_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+	// memory-usable:593740
+	{Name: "server_diagnostics_memory_usable_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
+
+	{Name: "server_diagnostics_nic_details_rx_packets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_rx_drop", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_tx_errors", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_rx_octets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_rx_rate", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_rx_errors", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_tx_drop", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_tx_packets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+	{Name: "server_diagnostics_nic_details_tx_rate", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id"}},
+
 	{Name: "server_diagnostics_uptime", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
 
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits},
@@ -313,17 +336,50 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			fmt.Sprintf("%v", server.Flavor["id"]))
 
 		//server_diagnostics_cpu_details_time
-		//map[cpu0_time:9.965e+10 cpu1_time:7.153e+10 hda_errors:-1 hda_read:796976 hda_read_req:213 hda_write:0
-		//		hda_write_req:0 memory:1.048576e+06 memory-actual:1.048576e+06 memory-available:1.008548e+06
-		//		memory-last_update:1.586337512e+09 memory-major_fault:643 memory-minor_fault:3.985196e+06
-		//		memory-rss:810084 memory-swap_in:0 memory-swap_out:0 memory-unused:582860 memory-usable:593740
-		//		tap3e417313-ff_rx:3.454137e+06 tap3e417313-ff_rx_drop:0 tap3e417313-ff_rx_errors:0
-		//		tap3e417313-ff_rx_packets:8115 tap3e417313-ff_tx:3.905463e+06 tap3e417313-ff_tx_drop:0
-		//		tap3e417313-ff_tx_errors:0 tap3e417313-ff_tx_packets:15717 tap8ecdff3e-0b_rx:63442
-		//		tap8ecdff3e-0b_rx_drop:0 tap8ecdff3e-0b_rx_errors:0 tap8ecdff3e-0b_rx_packets:414
-		//		tap8ecdff3e-0b_tx:400304 tap8ecdff3e-0b_tx_drop:0 tap8ecdff3e-0b_tx_errors:0
-		//		tap8ecdff3e-0b_tx_packets:1180 vda_errors:-1 vda_read:1.89332992e+08 vda_read_req:10778
-		//		vda_write:2.23245312e+08 vda_write_req:1663]
+		//map[
+		//      cpu0_time:9.965e+10
+		//      cpu1_time:7.153e+10
+		//
+		//      hda_errors:-1
+		//      hda_read:796976
+		//      hda_read_req:213
+		//      hda_write:0
+		//		hda_write_req:0
+		//
+		//		memory:1.048576e+06
+		//		memory-actual:1.048576e+06
+		//		memory-available:1.008548e+06
+		//		memory-last_update:1.586337512e+09
+		//		memory-major_fault:643
+		//		memory-minor_fault:3.985196e+06
+		//		memory-rss:810084
+		//		memory-swap_in:0
+		//		memory-swap_out:0
+		//		memory-unused:582860
+		//	    memory-usable:593740
+		//
+		//		tap3e417313-ff_rx:3.454137e+06
+		//		tap3e417313-ff_rx_drop:0
+		//		tap3e417313-ff_rx_errors:0
+		//		tap3e417313-ff_rx_packets:8115
+		//		tap3e417313-ff_tx:3.905463e+06
+		//		tap3e417313-ff_tx_drop:0
+		//		tap3e417313-ff_tx_errors:0
+		//		tap3e417313-ff_tx_packets:15717
+		//		tap8ecdff3e-0b_rx:63442
+		//		tap8ecdff3e-0b_rx_drop:0
+		//		tap8ecdff3e-0b_rx_errors:0
+		//		tap8ecdff3e-0b_rx_packets:414
+		//		tap8ecdff3e-0b_tx:400304
+		//		tap8ecdff3e-0b_tx_drop:0
+		//		tap8ecdff3e-0b_tx_errors:0
+		//		tap8ecdff3e-0b_tx_packets:1180
+		//
+		//		vda_errors:-1
+		//		vda_read:1.89332992e+08
+		//		vda_read_req:10778
+		//		vda_write:2.23245312e+08
+		//		vda_write_req:1663]
 
 		//if server.Status != "ACTIVE" {
 		diags, err := diagnostics.Get(exporter.Client, server.ID).Extract()
@@ -331,148 +387,178 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			continue // return err
 		}
 
-		//fmt.Printf("%+v\n", diags)
-		//{"id", "status", "name", "hypervisor", "cpu_id"
-		var hasMoreCpus bool
-		hasMoreCpus = true
-		var cpuId int
-		cpuId = 0
-		for hasMoreCpus {
-			cpuName := "cpu" + strconv.Itoa(cpuId)
-			accessor := cpuName + "_time"
-			cpuTime, ok := diags[accessor]
-			if ok {
-				ch <- prometheus.MustNewConstMetric(
-					exporter.Metrics["server_diagnostics_cpu_details_time"].Metric,
-					prometheus.GaugeValue,
-					cpuTime.(float64),
-					server.ID,
-					server.Status,
-					server.Name,
-					server.TenantID,
-					server.ServerAttributesExt.HypervisorHostname,
-					cpuName)
+		for diagKey, diagValue := range diags {
+			var ok bool
+			ok = false
+			var prometheusMetricName string
+			var prometheusItemName string
+			prometheusItemName = ""
+
+			if strings.Contains(diagKey, "cpu") {
+				if strings.Contains(diagKey, "time") {
+					prometheusMetricName = "server_diagnostics_cpu_details_time"
+					prometheusItemName = strings.ReplaceAll(diagKey, "_time", "")
+					ok = true
+				}
+			} else if strings.Contains(diagKey, "memory") {
+				if strings.Contains(diagKey, "actual") {
+					// todo: memory-actual:1.048576e+06
+					// todo: {Name: "server_diagnostics_memory_actual_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_actual_kb"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "available") {
+					// todo: memory-available:1.008548e+06
+					// todo: {Name: "server_diagnostics_memory_available_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_available_kb"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "last_update") {
+					// todo: memory-last_update:1.586337512e+09
+					// todo: {Name: "server_diagnostics_memory_last_update_time", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_last_update_time"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "major_fault") {
+					// todo: memory-major_fault:643
+					// todo: {Name: "server_diagnostics_memory_major_fault", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_major_fault"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "minor_fault") {
+					// todo: memory-minor_fault:3.985196e+06
+					// todo: {Name: "server_diagnostics_memory_minor_fault", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_minor_fault"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "rss") {
+					// todo: memory-rss:810084
+					// todo: {Name: "server_diagnostics_memory_rss", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_rss"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "swap_in") {
+					// todo: memory-swap_in:0
+					// todo: {Name: "server_diagnostics_memory_swap_in", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_swap_in"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "swap_out") {
+					// todo: memory-swap_out:0
+					// todo: {Name: "server_diagnostics_memory_swap_out", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_swap_out"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "unused") {
+					// todo: memory-unused:582860
+					// todo: {Name: "server_diagnostics_memory_unused_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_unused_kb"
+					prometheusItemName = ""
+					ok = true
+				} else if strings.Contains(diagKey, "usable") {
+					// todo: memory-usable:593740
+					// todo: {Name: "server_diagnostics_memory_usable_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_usable_kb"
+					prometheusItemName = ""
+					ok = true
+				} else {
+					// todo: memory:1.048.576.e+06
+					// todo: {Name: "server_diagnostics_memory_selected_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+					prometheusMetricName = "server_diagnostics_memory_selected_kb"
+					prometheusItemName = ""
+					ok = true
+				}
+			} else if strings.Contains(diagKey, "_tx") {
+				if strings.Contains(diagKey, "drop") {
+					//todo: server_diagnostics_nic_details_tx_drop
+					prometheusMetricName = "server_diagnostics_nic_details_tx_drop"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				} else if strings.Contains(diagKey, "errors") {
+					//todo: server_diagnostics_nic_details_tx_errors
+					prometheusMetricName = "server_diagnostics_nic_details_tx_errors"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				} else if strings.Contains(diagKey, "packets") {
+					//todo: server_diagnostics_nic_details_tx_packets
+					prometheusMetricName = "server_diagnostics_nic_details_tx_packets"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				} else {
+					//todo: server_diagnostics_nic_details_tx_rate
+					prometheusMetricName = "server_diagnostics_nic_details_tx_rate"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				}
+			} else if strings.Contains(diagKey, "_rx") {
+				if strings.Contains(diagKey, "drop") {
+					//todo: server_diagnostics_nic_details_rx_drop
+					prometheusMetricName = "server_diagnostics_nic_details_rx_drop"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				} else if strings.Contains(diagKey, "errors") {
+					//todo: server_diagnostics_nic_details_rx_errors
+					prometheusMetricName = "server_diagnostics_nic_details_rx_errors"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				} else if strings.Contains(diagKey, "packets") {
+					//todo: server_diagnostics_nic_details_rx_packets
+					prometheusMetricName = "server_diagnostics_nic_details_rx_packets"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				} else {
+					//todo: server_diagnostics_nic_details_rx_rate
+					prometheusMetricName = "server_diagnostics_nic_details_rx_rate"
+					prometheusItemName = strings.Split(diagKey, "-")[0]
+					ok = true
+				}
+			} else if strings.Index(diagKey, "hd") == 0 || strings.Index(diagKey, "vd") == 0 || strings.Index(diagKey, "sd") == 0 {
+				//		vda_errors:-1
+				//		vda_read:1.89332992e+08
+				//		vda_read_req:10778
+				//		vda_write:2.23245312e+08
+				//		vda_write_req:1663]
+				if strings.Contains(diagKey, "errors") {
+					prometheusMetricName = "server_diagnostics_disk_details_errors_count"
+				} else if strings.Contains(diagKey, "read_req") {
+					prometheusMetricName = "server_diagnostics_disk_details_read_requests"
+				} else if strings.Contains(diagKey, "write_req") {
+					prometheusMetricName = "server_diagnostics_disk_details_write_requests"
+				} else if strings.Contains(diagKey, "read") {
+					prometheusMetricName = "server_diagnostics_disk_details_read_bytes"
+				} else if strings.Contains(diagKey, "write") {
+					prometheusMetricName = "server_diagnostics_disk_details_write_bytes"
+				}
+
+				prometheusItemName = strings.Split(diagKey, "_")[0]
+				ok = true
 			}
-			hasMoreCpus = ok
-			cpuId++
+			if ok {
+				if prometheusItemName == "" {
+					ch <- prometheus.MustNewConstMetric(
+						exporter.Metrics[prometheusMetricName].Metric,
+						prometheus.GaugeValue,
+						diagValue.(float64),
+						server.ID,
+						server.Status,
+						server.Name,
+						server.TenantID,
+						server.ServerAttributesExt.HypervisorHostname)
+				} else {
+					ch <- prometheus.MustNewConstMetric(
+						exporter.Metrics[prometheusMetricName].Metric,
+						prometheus.GaugeValue,
+						diagValue.(float64),
+						server.ID,
+						server.Status,
+						server.Name,
+						server.TenantID,
+						server.ServerAttributesExt.HypervisorHostname,
+						prometheusItemName)
+				}
+			}
 		}
 
-		// todo: make dynamic, what about hda and sda
-		var disks [12]string
-		disks[0] = "vda"
-		disks[1] = "vdb"
-		disks[2] = "vdc"
-		disks[3] = "vdd"
-		disks[4] = "sda"
-		disks[5] = "sdb"
-		disks[6] = "sdc"
-		disks[7] = "sdd"
-		disks[8] = "hda"
-		disks[9] = "hdb"
-		disks[10] = "hdc"
-		disks[11] = "hdd"
-
-		// server_diagnostics_disk_details_write_bytes
-		for _, disk := range disks {
-			accessor := disk + "_write"
-			diskWrite, ok := diags[accessor]
-			if ok {
-				ch <- prometheus.MustNewConstMetric(
-					exporter.Metrics["server_diagnostics_disk_details_write_bytes"].Metric,
-					prometheus.GaugeValue,
-					diskWrite.(float64),
-					server.ID,
-					server.Status,
-					server.Name,
-					server.TenantID,
-					server.ServerAttributesExt.HypervisorHostname,
-					disk)
-			}
-		}
-
-		//todo: server_diagnostics_disk_details_read_bytes
-		for _, disk := range disks {
-			accessor := disk + "_read"
-			diskRead, ok := diags[accessor]
-			if ok {
-				ch <- prometheus.MustNewConstMetric(
-					exporter.Metrics["server_diagnostics_disk_details_read_bytes"].Metric,
-					prometheus.GaugeValue,
-					diskRead.(float64),
-					server.ID,
-					server.Status,
-					server.Name,
-					server.TenantID,
-					server.ServerAttributesExt.HypervisorHostname,
-					disk)
-			}
-		}
-
-		//todo: server_diagnostics_disk_details_errors_count
-		for _, disk := range disks {
-			accessor := disk + "_errors"
-			diskErrors, ok := diags[accessor]
-			if ok {
-				ch <- prometheus.MustNewConstMetric(
-					exporter.Metrics["server_diagnostics_disk_details_errors_count"].Metric,
-					prometheus.GaugeValue,
-					diskErrors.(float64),
-					server.ID,
-					server.Status,
-					server.Name,
-					server.TenantID,
-					server.ServerAttributesExt.HypervisorHostname,
-					disk)
-			}
-		}
-
-		//todo: server_diagnostics_disk_details_read_requests
-		for _, disk := range disks {
-			accessor := disk + "_read_req"
-			diskReadReq, ok := diags[accessor]
-			if ok {
-				ch <- prometheus.MustNewConstMetric(
-					exporter.Metrics["server_diagnostics_disk_details_read_requests"].Metric,
-					prometheus.GaugeValue,
-					diskReadReq.(float64),
-					server.ID,
-					server.Status,
-					server.Name,
-					server.TenantID,
-					server.ServerAttributesExt.HypervisorHostname,
-					disk)
-			}
-		}
-
-		//todo: server_diagnostics_disk_details_write_requests
-		for _, disk := range disks {
-			accessor := disk + "_write_req"
-			diskWriteReq, ok := diags[accessor]
-			if ok {
-				ch <- prometheus.MustNewConstMetric(
-					exporter.Metrics["server_diagnostics_disk_details_write_requests"].Metric,
-					prometheus.GaugeValue,
-					diskWriteReq.(float64),
-					server.ID,
-					server.Status,
-					server.Name,
-					server.TenantID,
-					server.ServerAttributesExt.HypervisorHostname,
-					disk)
-			}
-		}
-
-		//todo: server_diagnostics_nic_details_rx_packets
-		//todo: server_diagnostics_nic_details_rx_rate
-		//todo: server_diagnostics_nic_details_tx_packets
-		//todo: server_diagnostics_nic_details_tx_rate
-
-		//todo: server_diagnostics_nic_details_rx_drop
-		//todo: server_diagnostics_nic_details_tx_errors
-		//todo: server_diagnostics_nic_details_rx_octets
-		//todo: server_diagnostics_nic_details_rx_errors
-		//todo: server_diagnostics_nic_details_tx_drop
-		//todo: server_diagnostics_memory_details_gb
 		//todo: server_diagnostics_uptime
 		//fmt.Printf("%+v\n", diags)
 		//}
