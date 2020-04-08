@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/diagnostics"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
 	"sort"
 	"strconv"
 
@@ -75,25 +76,25 @@ var defaultNovaMetrics = []Metric{
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
 
-	{Name: "server_diagnostics_cpu_details_time", Labels: []string{"id", "status", "name", "host_id", "cpu_id"}},
+	{Name: "server_diagnostics_cpu_details_time", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "cpu_id"}},
 
-	{Name: "server_diagnostics_disk_details_write_bytes", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
-	{Name: "server_diagnostics_disk_details_read_bytes", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
-	{Name: "server_diagnostics_disk_details_errors_count", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
-	{Name: "server_diagnostics_disk_details_read_requests", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
-	{Name: "server_diagnostics_disk_details_write_requests", Labels: []string{"id", "status", "name", "host_id", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_write_bytes", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_read_bytes", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_errors_count", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_read_requests", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
+	{Name: "server_diagnostics_disk_details_write_requests", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "disk_id"}},
 
-	{Name: "server_diagnostics_memory_details_gb", Labels: []string{"id", "status", "name", "host_id", "uuid"}},
-	{Name: "server_diagnostics_nic_details_rx_packets", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_drop", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_errors", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_octets", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_rate", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_rx_errors", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_drop", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_packets", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_nic_details_tx_rate", Labels: []string{"id", "status", "name", "host_id", "nic_id", "mac"}},
-	{Name: "server_diagnostics_uptime", Labels: []string{"id", "status", "name", "host_id"}},
+	{Name: "server_diagnostics_memory_details_gb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
+	{Name: "server_diagnostics_nic_details_rx_packets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_drop", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_errors", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_octets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_rate", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_rx_errors", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_drop", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_packets", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_nic_details_tx_rate", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "nic_id", "mac"}},
+	{Name: "server_diagnostics_uptime", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor"}},
 
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}},
@@ -272,6 +273,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	type ServerWithExt struct {
 		servers.Server
 		availabilityzones.ServerAvailabilityZoneExt
+		extendedserverattributes.ServerAttributesExt
 	}
 
 	var allServers []ServerWithExt
@@ -330,7 +332,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		}
 
 		//fmt.Printf("%+v\n", diags)
-		//{"id", "status", "name", "host_id", "cpu_id"
+		//{"id", "status", "name", "hypervisor", "cpu_id"
 		var hasMoreCpus bool
 		hasMoreCpus = true
 		var cpuId int
@@ -347,7 +349,8 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 					server.ID,
 					server.Status,
 					server.Name,
-					server.HostID,
+					server.TenantID,
+					server.ServerAttributesExt.HypervisorHostname,
 					cpuName)
 			}
 			hasMoreCpus = ok
