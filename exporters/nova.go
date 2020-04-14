@@ -387,6 +387,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			continue // return err
 		}
 
+		// todo: make this a bit more like it's made by a software engineer
 		for diagKey, diagValue := range diags {
 			var ok bool
 			ok = false
@@ -402,122 +403,87 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 				}
 			} else if strings.Contains(diagKey, "memory") {
 				if strings.Contains(diagKey, "actual") {
-					// todo: memory-actual:1.048576e+06
-					// todo: {Name: "server_diagnostics_memory_actual_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_actual_kb"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "available") {
-					// todo: memory-available:1.008548e+06
-					// todo: {Name: "server_diagnostics_memory_available_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_available_kb"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "last_update") {
-					// todo: memory-last_update:1.586337512e+09
-					// todo: {Name: "server_diagnostics_memory_last_update_time", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_last_update_time"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "major_fault") {
-					// todo: memory-major_fault:643
-					// todo: {Name: "server_diagnostics_memory_major_fault", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_major_fault"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "minor_fault") {
-					// todo: memory-minor_fault:3.985196e+06
-					// todo: {Name: "server_diagnostics_memory_minor_fault", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_minor_fault"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "rss") {
-					// todo: memory-rss:810084
-					// todo: {Name: "server_diagnostics_memory_rss", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_rss"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "swap_in") {
-					// todo: memory-swap_in:0
-					// todo: {Name: "server_diagnostics_memory_swap_in", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_swap_in"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "swap_out") {
-					// todo: memory-swap_out:0
-					// todo: {Name: "server_diagnostics_memory_swap_out", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_swap_out"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "unused") {
-					// todo: memory-unused:582860
-					// todo: {Name: "server_diagnostics_memory_unused_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_unused_kb"
 					prometheusItemName = ""
 					ok = true
 				} else if strings.Contains(diagKey, "usable") {
-					// todo: memory-usable:593740
-					// todo: {Name: "server_diagnostics_memory_usable_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_usable_kb"
 					prometheusItemName = ""
 					ok = true
 				} else {
-					// todo: memory:1.048.576.e+06
-					// todo: {Name: "server_diagnostics_memory_selected_kb", Labels: []string{"id", "status", "name", "tenant_id", "hypervisor", "uuid"}},
 					prometheusMetricName = "server_diagnostics_memory_selected_kb"
 					prometheusItemName = ""
 					ok = true
 				}
 			} else if strings.Contains(diagKey, "_tx") {
 				if strings.Contains(diagKey, "drop") {
-					//todo: server_diagnostics_nic_details_tx_drop
 					prometheusMetricName = "server_diagnostics_nic_details_tx_drop"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				} else if strings.Contains(diagKey, "errors") {
-					//todo: server_diagnostics_nic_details_tx_errors
 					prometheusMetricName = "server_diagnostics_nic_details_tx_errors"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				} else if strings.Contains(diagKey, "packets") {
-					//todo: server_diagnostics_nic_details_tx_packets
 					prometheusMetricName = "server_diagnostics_nic_details_tx_packets"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				} else {
-					//todo: server_diagnostics_nic_details_tx_rate
 					prometheusMetricName = "server_diagnostics_nic_details_tx_rate"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				}
 			} else if strings.Contains(diagKey, "_rx") {
 				if strings.Contains(diagKey, "drop") {
-					//todo: server_diagnostics_nic_details_rx_drop
 					prometheusMetricName = "server_diagnostics_nic_details_rx_drop"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				} else if strings.Contains(diagKey, "errors") {
-					//todo: server_diagnostics_nic_details_rx_errors
 					prometheusMetricName = "server_diagnostics_nic_details_rx_errors"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				} else if strings.Contains(diagKey, "packets") {
-					//todo: server_diagnostics_nic_details_rx_packets
 					prometheusMetricName = "server_diagnostics_nic_details_rx_packets"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				} else {
-					//todo: server_diagnostics_nic_details_rx_rate
 					prometheusMetricName = "server_diagnostics_nic_details_rx_rate"
 					prometheusItemName = strings.Split(diagKey, "-")[0]
 					ok = true
 				}
 			} else if strings.Index(diagKey, "hd") == 0 || strings.Index(diagKey, "vd") == 0 || strings.Index(diagKey, "sd") == 0 {
-				//		vda_errors:-1
-				//		vda_read:1.89332992e+08
-				//		vda_read_req:10778
-				//		vda_write:2.23245312e+08
-				//		vda_write_req:1663]
 				if strings.Contains(diagKey, "errors") {
 					prometheusMetricName = "server_diagnostics_disk_details_errors_count"
 				} else if strings.Contains(diagKey, "read_req") {
